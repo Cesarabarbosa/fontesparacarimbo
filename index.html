@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Carimbos 3D e Caixinha Paramétrica</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1e1e1e; font-family: sans-serif; color: white; }
+        
+        #btn-show-menu {
+            position: absolute; top: 10px; left: 10px; z-index: 90;
+            background-color: #333; color: white; border: 1px solid #555;
+            padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold;
+            display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        #btn-show-menu:hover { background-color: #444; }
+
+        #ui-container {
+            position: absolute; top: 10px; left: 10px; width: 320px; max-width: 90vw;
+            max-height: 90vh; overflow-y: auto;
+            background: rgba(0, 0, 0, 0.85); padding: 20px; border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); z-index: 100;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        #ui-container::-webkit-scrollbar { width: 6px; }
+        #ui-container::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+
+        .ui-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; margin-bottom: 15px; padding-bottom: 10px; }
+        .ui-header h2 { margin: 0; font-size: 18px; }
+        #btn-hide-menu {
+            background: transparent; border: none; color: #aaa; font-size: 20px;
+            cursor: pointer; padding: 0; line-height: 1;
+        }
+        #btn-hide-menu:hover { color: #fff; }
+
+        .alert-box {
+            background-color: #d32f2f; color: white; padding: 12px; border-radius: 4px;
+            margin-bottom: 15px; font-size: 13px; font-weight: bold; text-align: center;
+            border: 1px solid #b71c1c; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            line-height: 1.4;
+            display: none;
+        }
+
+        .control-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 14px; color: #ccc; font-weight: bold; }
+        .checkbox-label { display: flex; align-items: center; cursor: pointer; color: #fff; font-weight: normal;}
+        .checkbox-label input { width: auto; margin-right: 10px; transform: scale(1.2); }
+        input[type="number"], input[type="file"], select {
+            width: 100%; padding: 8px; box-sizing: border-box;
+            background: #333; color: white; border: 1px solid #555; border-radius: 4px;
+        }
+        .info-text { font-size: 12px; color: #aaa; margin-top: 5px; line-height: 1.4; }
+        
+        button.action-btn {
+            width: 100%; padding: 12px; margin-top: 10px;
+            background-color: #2196F3; color: white; border: none;
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 14px;
+        }
+        button.action-btn:hover { background-color: #1976D2; }
+        button.action-btn:disabled { background-color: #555; cursor: not-allowed; color: #888; }
+        
+        button.box-btn {
+            background-color: #4CAF50;
+            margin-top: 15px;
+        }
+        button.box-btn:hover { background-color: #388E3C; }
+
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        #status { font-size: 13px; color: #ffeb3b; margin-top: 15px; text-align: center; font-weight: bold; }
+
+        details.manual {
+            background: #2a2a2a; border: 1px solid #444; border-radius: 4px;
+            margin-bottom: 15px; font-size: 13px; color: #ddd;
+        }
+        details.manual summary {
+            padding: 10px; cursor: pointer; font-weight: bold; user-select: none;
+            background: #333; border-radius: 4px;
+        }
+        details.manual summary:hover { background: #3d3d3d; }
+        .manual-content { padding: 15px; line-height: 1.5; }
+        .manual-content p { margin-top: 0; margin-bottom: 10px; }
+        .manual-content ol { margin-top: 0; padding-left: 20px; }
+        .manual-content li { margin-bottom: 8px; }
+        .highlight { color: #4CAF50; font-weight: bold; }
+        
+        .hidden { transform: translateX(-120%); opacity: 0; pointer-events: none; }
+
+        /* Estilos do Botão e Container de Vídeo */
+        #top-video-container {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 560px;
+            max-width: 90vw;
+        }
+
+        #btn-toggle-video {
+            background-color: #f44336;
+            color: white;
+            border: 2px solid #b71c1c;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        #btn-toggle-video:hover {
+            background-color: #d32f2f;
+            transform: scale(1.05);
+        }
+
+        #video-content {
+            display: none;
+            margin-top: 15px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            width: 100%;
+            box-sizing: border-box;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+        }
+
+        #video-content iframe {
+            width: 100%;
+            height: 315px;
+            border: none;
+            border-radius: 4px;
+        }
+
+        #btn-subscribe {
+            display: block;
+            margin-top: 15px;
+            background-color: #ff9800;
+            color: #000;
+            text-align: center;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s ease;
+        }
+
+        #btn-subscribe:hover {
+            background-color: #f57c00;
+        }
+    </style>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+</head>
+<body>
+
+    <div id="top-video-container">
+        <button id="btn-toggle-video">▶ Assistir Vídeo</button>
+        <div id="video-content">
+            <iframe src="https://www.youtube.com/embed/3vZc9crImCw" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <a href="https://euquero.aprenderceramica.online/" id="btn-subscribe" target="_blank">Assine meus conteúdos por 49,90, você tem centenas de aulas?</a>
+        </div>
+    </div>
+
+    <button id="btn-show-menu">⚙️ Mostrar Menu</button>
+
+    <div id="ui-container">
+        <div class="ui-header">
+            <h2>Configuração</h2>
+            <button id="btn-hide-menu" title="Esconder Menu">✖</button>
+        </div>
+
+        <details class="manual">
+            <summary>📖 Como usar (Manual)</summary>
+            <div class="manual-content">
+                <ol>
+                    <li><strong>Escolha uma fonte pré-instalada:</strong> Selecione diretamente na lista de modelos do servidor.</li>
+                    <li><strong>Ou use sua própria fonte:</strong> Se preferir, faça upload de um arquivo personalizado do seu computador.</li>
+                    <li><strong>Gere os Modelos:</strong> Configure o tamanho e clique para criar a geometria tridimensional.</li>
+                </ol>
+            </div>
+        </details>
+        
+        <div class="control-group">
+            <label for="char-mode">Opção de Caracteres:</label>
+            <select id="char-mode">
+                <option value="MAIUSCULAS">Apenas Maiúsculas + Números (36)</option>
+                <option value="MINUSCULAS">Apenas Minúsculas + Números (36)</option>
+                <option value="AMBAS">Maiúsculas + Minúsculas + Números (62)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="cube-width">Largura do Cubo (mm):</label>
+            <input type="number" id="cube-width" value="20" min="5" max="50">
+            <div id="size-warning" class="info-text">Tamanho da área útil: --</div>
+        </div>
+
+        <div class="control-group">
+            <label for="font-server-select">Fontes Disponíveis:</label>
+            <select id="font-server-select">
+                <option value="">-- Escolha uma fonte da lista --</option>
+            </select>
+        </div>
+        
+        <div class="control-group">
+            <label for="font-upload">Ou Upload de Fonte Externa (.ttf, .otf):</label>
+            <input type="file" id="font-upload" accept=".ttf,.otf">
+        </div>
+
+        <div class="control-group" style="margin-top: 20px; background: #333; padding: 10px; border-radius: 4px;">
+            <label class="checkbox-label">
+                <input type="checkbox" id="show-box-toggle" checked>
+                Mostrar Caixinha no Visualizador
+            </label>
+        </div>
+
+        <button id="btn-generate" class="action-btn" disabled>Gerar Modelo Completo</button>
+        
+        <div id="mirror-alert" class="alert-box">
+            ⚠️ ATENÇÃO: As letras estão invertidas espelhadas por se tratar de um carimbo.
+        </div>
+
+        <button id="btn-download-stamps" class="action-btn" disabled>Baixar Carimbos (.STL)</button>
+        <button id="btn-download-box" class="action-btn box-btn" disabled>Baixar Caixinha (.STL)</button>
+
+        <div id="status">Escolha uma fonte da lista ou faça upload para começar.</div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+        import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
+
+        let scene, camera, renderer, controls;
+        let stampGroup = new THREE.Group();
+        let boxGroup = new THREE.Group();
+        let loadedFont = null;
+
+        const CUBE_HEIGHT = 20;
+        const TEXT_DEPTH = 3;
+        const MARGIN_PERCENTAGE = 0.05; 
+        
+        const ALTURA_TOTAL_CAIXA = 10;
+        const ESPESSURA_PAREDE = 2;
+        const ESPESSURA_FUNDO = 2;
+        const TOLERANCIA_CAVIDADE = 0.5;
+
+        // CONFIGURAÇÃO REAL DO SEU REPOSITÓRIO
+        const GITHUB_USER = "Cesarabarbosa";
+        const GITHUB_REPO = "fontesparacarimbo";
+        const GITHUB_BRANCH = "main";
+        const FONT_FOLDER = "fontes";
+
+        // LISTA ATUALIZADA COM TODAS AS SUAS 60 FONTES DO REPOSITÓRIO
+        const listaDeFontes = [
+            "ALGER.TTF",
+            "ARBLANCO.TTF",
+            "ARIAL.TTF",
+            "ARIALBD.TTF",
+            "ARIALI.TTF",
+            "ARIALRXR.TTF",
+            "ARIALZ.TTF",
+            "ARIBLK.TTF",
+            "BROADW.TTF",
+            "Brother Signature.otf",
+            "CALIBRI.TTF",
+            "CALIBRIB.TTF",
+            "CALIBRII.TTF",
+            "CALIBRIZ.TTF",
+            "CAMBRIA.TTC",
+            "CAMBRIAB.TTF",
+            "CAMBRIAI.TTF",
+            "CAMBRIAZ.TTF",
+            "CASTELAR.TTF",
+            "CENTURY.TTF",
+            "CHILLER.TTF",
+            "COMIC.TTF",
+            "COMICBD.TTF",
+            "COMICI.TTF",
+            "COMICZ.TTF",
+            "CONSOLA.TTF",
+            "CONSOLAB.TTF",
+            "CONSOLAI.TTF",
+            "CONSOLAZ.TTF",
+            "COOPBL.TTF",
+            "COPRGTB.TTF",
+            "COPRGTL.TTF",
+            "COUR.TTF",
+            "COURBD.TTF",
+            "COURI.TTF",
+            "COURZ.TTF",
+            "Coolvetica Rg It.ttf",
+            "EBRIMA.TTF",
+            "EBRIMABD.TTF",
+            "FORTE.TTF",
+            "GADUGI.TTF",
+            "GADUGIB.TTF",
+            "GEORGIA.TTF",
+            "GEORGIAB.TTF",
+            "GEORGIAI.TTF",
+            "GEORGIAZ.TTF",
+            "GIGI.TTF",
+            "HARNGTON.TTF",
+            "IMPACT.TTF",
+            "JOKERMAN.TTF",
+            "LBRITE.TTF",
+            "LBRITED.TTF",
+            "LBRITEDI.TTF",
+            "LBRITEI.TTF",
+            "LEELAWAD.TTF",
+            "LEELAWB.TTF",
+            "MAGNETOB.TTF",
+            "MVBOLI.TTF",
+            "PLAYBILL.TTF",
+            "Pull-Me Out Bold.ttf"
+        ];
+
+        init();
+        animate();
+
+        function init() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.set(0, 200, 200);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            const ambientLight = new THREE.AmbientLight(0x606060, 1.5);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 2);
